@@ -1,0 +1,123 @@
+Hashing
+                            Date        blocked
+                    |               |               |                      |               |
+                    |               |               |                 n+0  |               |   -.
+ Namespace ->       |               |               |   Address Space      |               |    |
+                    |               |               |                      |               |    |  k blocks indexed
+                    |               |               |                      |               |    |  from 0 to k-1
+                    |               |               |                      |               |    |  contiguous blocks
+                    |               |               |                      |               |    |  for flatfile
+                    |               |               |                      |               |    |
+                    |               |               |                      |               |    |
+                    |               |               |               n+k-1  |               |    |
+                    |               |               |                 v    |               |   -'
+                    |               |               |              k block |               |
+                                indexfile
+
+
+Hash function
+
+Key -> enumerate key -> x -> computation on x -> y -> address = y mod k
+
+Cat -> |C|    |A|     |T| -> x -> use x to generate random number = y -> address = (y mod k) + n (offset)
+            in ascii
+
+For Primary keys*
+
+For secondary key
+                        |               |               |                |                   |               |
+                        |               |               |                |                   |               |
+                        |               |               |                |                   |               |
+                        |               |               |----------------|                   |               |
+                        |               |               |  NBA PLAYOFFS  |              x    |               |      pull out blocks
+                        |               |               |----------------|                   |               |      hit both lists
+                        |               |               |                |                   |               |  
+                        |               |               |----------------|                   |               |      nba playoffs    Celtics
+                        |   1066        |   h(1066)->   | ALL BLOCKID    |              x    |               |          b1            b1'
+  "nba playoffs         |               |               | FOR ALL RECORDS|                   |               |          b2            b2'
+    Celtics"            |               |               | THAT MATCH KEY |                   |               |          b3            b3'
+                        |               |               |----------------|                   |               |          b4            b4'
+                        |               |               |                |                   |               |          b5            b5'
+                        |               |               |----------------|              x    |               |          .             .
+                        |               |               |  Celtics       |                   |               |          .             .
+                        |               |               |----------------|                   |               |          .             .
+                            LIST OF KEYS                    file                                flatfile
+
+HASHING - Storing flat file
+                                                                            Overflow file
+                                         0  |                   | .---->  | ***************** |
+                                            |                   | |       |                   |  
+                                            |                   | |       |                   |    
+                                            |                   | |       |                   |  
+                                            |                   | |
+    date                                    |                   | | 120 byte records (2^7 = 128)
+                                 .------->  | ***************** |-'   2^3 = 8 records in a 1024 byte block
+  |- 1094  |                |    |          |                   |
+  |- 984   |                |    |          |                   |   What happens when a record is 9th, 10th, 11th hashed to an address? Collision
+  |- 1094  |                |    |          |                   |
+                                 |    .-->  |                   |   Collisions depend on 
+    h(-1094) --------------------'    |     |                   |   1) # records us address space
+                                      |     |                   |   2) bucket size = # records per block
+    h( -984) -------------------------'     |                   |
+                                            |                   |   *create an overflow file
+                                            |                   |
+                                            |                   |
+                                            |                   |
+                                        k-1 |                   |
+
+
+Indicator Random Variable Vi  (i=0 - k-1)
+
+0     |                 |  b0                                                   assume r total records
+      |                 |  b1                                                   p(x) = prob bi has exactly x records
+      |                 |                                                            =   /r\ ( 1/k )^x ( 1 - 1/k)^(r-x)   binomial distribution
+      |                 |                                                                \x/      .----------------(density)
+      |                 |                                                            ~  [ /r\ e^(-r/k) ]
+      |                 |                                                               [ \x/          ] / x! 
+      |                 |           Vi = 1 if block i has exactly x records
+      |                 |  bi            0 otherwise
+      |                 |           
+      |                 | 
+      |                 | 
+      |                 | 
+      |                 | 
+      |                 | 
+      |                 | 
+      |                 | 
+      |                 | 
+k-1   |                 | b k-1
+
+How many blocks have exacly x records?
+
+    k-1                     k-1
+    ----                    ----                                 
+    \                       \           x  (-r/k)                        x   (-r/k)
+    /     pr(Vi=1) Vi   =   /      (r/x)  e         /  x!  =    k ( r/k )  e        / x!
+    ----                    ----                                      
+    i=0                     i = 0
+
+    k = 75 r = 300 bucket size = 4
+1) how many empty buckets (addresses)?
+
+    k p(0) = 75 * 0.0183 = 137
+
+2) how many addresses overflow
+
+    k * p(5) + k * p(6) + ... + k * p(300)  The ones that overflow
+OR k - [ k * p(0) + k * p(1) + k * p(2) + k * p(3) + k * p(4)]  the ones that don't overflow
+
+    27.87 / 300      try to increase k to reduce # that overflow
+
+3) how many records overflow?
+
+     total records don't overflow
+
+        300 - (0*k*p(0) + 1*k*p(1) + 2*k*p(2) + 3*k*p(3) + 4*k*p(4) )  - 4 ( # of blocks that overflow)
+        = 58.58         
+
+0   |  r1/r2/r3/r4   |          i | p(i)        
+    |                |          0 | 0.183                      .-.
+    |                |          1 | 0.732                     /   \
+    |                |          2 | .1465                    /     \
+    |                |          3 | .1952                  .'       '.
+74  |                |          4 | .1952            __..-'           '-..__
